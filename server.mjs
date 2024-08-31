@@ -1,11 +1,11 @@
 import express from "express";
-import postRouter from "./src/routes/post.mjs";
+import routes from "./src/routes/index.mjs"
 
 const app = express();
 // middleware that process body json;
 app.use(express.json());
 
-app.use(postRouter);
+app.use(routes);
 
 app.listen(3000,()=>{
     console.log("App running on port 3000");
