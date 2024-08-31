@@ -1,6 +1,8 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { validateJwtToken, getJwtToken } from "../utils/jwt.mjs";
+import { validateJwtToken, getJwtToken, signJwtToken } from "../utils/jwt.mjs";
+
+
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -8,11 +10,20 @@ const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
 
 const authRouter = Router(); 
 
-const user = {
+const users = [{
     username:"oren",
     email:"oren@gmail.co",
-    password:"123456"
-}
+    password:"123456",
+    role: "author"
+},
+{
+    username:"admin",
+    email:"admin@gmail.co",
+    password:"123456",
+    role: "admin"
+},
+
+]
 
 
 
@@ -23,10 +34,9 @@ const tokens = new Map();
 
 authRouter.post("/api/auth/login",(req,res)=>{
     const {email, password} = req.body;
-    if(user.email===email&& user.password===password){
-        const accessToken = jwt.sign({email: user.email, role: "user"}, accessTokenSecret,{
-          expiresIn: '4m',
-        })
+    const user = users.find(user => user.email===email && user.password===password)
+    if(user){
+        const accessToken = signJwtToken({email: email, role: user.role}, accessTokenSecret)
         tokens.set(accessToken, true);
         res.json({ accessToken, tokens: Array.from(tokens) });    
     }

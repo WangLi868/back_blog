@@ -29,7 +29,7 @@ let posts = [
 ];
 
 // * public
-postRouter.get("/api/posts", checkAuthMiddleware, (req, res) => {
+postRouter.get("/api/posts", (req, res) => {
   
   res.status(200).json(posts);
 });
@@ -49,7 +49,7 @@ postRouter.get("/api/posts/:id", (req, res) => {
 });
 
 // ! restricted / auth 
-postRouter.post("/api/posts", checkAuthMiddleware, (req, res) => {
+postRouter.post("/api/posts", checkAuthMiddleware(["admin", "author"]), (req, res) => {
   const { title, content } = req.body;
   const newPost = {
     id: posts.length + 1,
@@ -64,7 +64,7 @@ postRouter.post("/api/posts", checkAuthMiddleware, (req, res) => {
 
 
 // ! restricted / auth 
-postRouter.delete('/api/posts/:id', checkAuthMiddleware, (req, res)=>{
+postRouter.delete('/api/posts/:id',  checkAuthMiddleware(["admin", "author"]), (req, res)=>{
   const {id} = req.params;
   if(+id > posts.length) return res.status(404).json({message: "post you are trying to delete doesn't exists!"});
   
@@ -74,7 +74,7 @@ postRouter.delete('/api/posts/:id', checkAuthMiddleware, (req, res)=>{
 
 
 // ! restricted / auth 
-postRouter.put("/api/posts/:id", checkAuthMiddleware, (req, res) => {
+postRouter.put("/api/posts/:id",  checkAuthMiddleware(["admin", "author"]), (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
   
