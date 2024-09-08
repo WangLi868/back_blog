@@ -44,7 +44,7 @@ model Post {
   authorId  Int
   tags      Tag[]
   comments  Comment[]
-  updatedAt DateTime
+  updatedAt DateTime?
   createdAt DateTime  @default(now())
 }
 
@@ -70,3 +70,4 @@ enum Role {
   AUTHOR
   ADMIN
 }
+

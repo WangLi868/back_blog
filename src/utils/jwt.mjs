@@ -23,7 +23,7 @@ function getJwtPayload(token) {
 
 function signJwtToken(payload, secret) {
     return jwt.sign(payload, secret,{
-        expiresIn: '4m',
+        expiresIn: '4h',
       })
 }
 

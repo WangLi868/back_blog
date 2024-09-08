@@ -1,5 +1,6 @@
-import { Router } from "express";
-import checkAuthMiddleware from "../middlewares/authMiddleware.mjs"
+import { json, Router } from "express";
+import checkAuthMiddleware from "../middlewares/authMiddleware.mjs";
+import prisma from "../utils/db.mjs";
 
 const postRouter = Router();
 
@@ -29,69 +30,104 @@ let posts = [
 ];
 
 // * public
-postRouter.get("/api/posts", (req, res) => {
-  
+postRouter.get("/api/posts", async (req, res) => {
+  const posts = await prisma.post.findMany({
+    select: { id: true, title: true, createdAt: true },
+  });
   res.status(200).json(posts);
 });
 
-
 // * public
-postRouter.get("/api/posts/:id", (req, res) => {
-  const { id } = req.params;
-  const foundPost = posts.filter((p) => p.id === +id);
-  
-  if (foundPost.length) {
-    res.json(foundPost[0]);
-    return;
+postRouter.get("/api/posts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const foundPost = await prisma.post.findUnique({
+      where: { id: +id },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        createdAt: true,
+        author: { select: { username: true } },
+      },
+    });
+
+    if (foundPost) {
+      return res.json(foundPost);
+    }
+    return res.status(404).json({ message: "post not found!" });
+  } catch (e) {
+    return res.status(500).json({ error: e });
   }
-
-  res.status(404).json({ message: "Post not found!" });
 });
 
-// ! restricted / auth 
-postRouter.post("/api/posts", checkAuthMiddleware(["admin", "author"]), (req, res) => {
-  const { title, content } = req.body;
-  const newPost = {
-    id: posts.length + 1,
-    title,
-    content,
-    posted: "24/08/2024",
-  };
-  
-  posts.push(newPost);
-  res.status(201).json({message:"post created successfully"})
-});
-
-
-// ! restricted / auth 
-postRouter.delete('/api/posts/:id',  checkAuthMiddleware(["admin", "author"]), (req, res)=>{
-  const {id} = req.params;
-  if(+id > posts.length) return res.status(404).json({message: "post you are trying to delete doesn't exists!"});
-  
-  posts = posts.filter(post=> post.id !== +id);
-  res.sendStatus(204);
-});
-
-
-// ! restricted / auth 
-postRouter.put("/api/posts/:id",  checkAuthMiddleware(["admin", "author"]), (req, res) => {
-  const { id } = req.params;
-  const { title, content } = req.body;
-  
-  const post = posts.find(p => p.id === +id);
-  console.log(post);
-
-  if (!post) {
-    return res.status(404).json({ message: "Post not found!" });
+// ! restricted / auth
+postRouter.post(
+  "/api/posts",
+  //  checkAuthMiddleware(["admin", "author"]),
+  async (req, res) => {
+    const { title, content, authorId } = req.body;
+    try {
+      const newPost = await prisma.post.create({
+        data: {
+          title,
+          content,
+          authorId: +authorId,
+        },
+      });
+      if (newPost)
+        return res.status(201).json({ message: "post created successfully!" });
+      throw new Error("Cloud not create new post.");
+    } catch (e) {
+      res.status(500).json({ error: e });
+    }
   }
+);
 
-  // Update fields if provided
-  if (title) post.title = title;
-  if (content) post.content = content;
-  post.posted = new Date().toLocaleDateString();  // Set to current date
+// ! restricted / auth
+postRouter.delete(
+  "/api/posts/:id",
+  checkAuthMiddleware(["admin", "author"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deletePost=await prisma.post.delete({
+        where: {
+          id: +id,
+        },
+      });
+      if(deletePost)
+        return res.json({ message: "Post Deleted Successfully" });
+    } catch (e) {
+      res.status(500).json({ error: e });
+    }
+    
+  }
+);
 
-  res.status(200).json({ message: "Post updated successfully", post });
-});
+// ! restricted / auth
+postRouter.put(
+  "/api/posts/:id",
+  checkAuthMiddleware(["admin", "author"]),
+  async(req, res) => {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    try {
+      const updatePost=await prisma.post.update({
+        where:{id:+id},
+        data: {title,content}
+      })
+      if(updatePost){
+        res.status(200).json({ message: "Post updated successfully"});
+      }
+    } catch (e) {
+      return res.status(500).json({error:e});
+    }
+      
+    
 
+
+  }
+);
 
 export default postRouter;

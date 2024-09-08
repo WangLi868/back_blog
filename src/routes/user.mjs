@@ -1,64 +1,84 @@
-import {Router} from "express";
+import { Router } from "express";
 import checkAuthMiddleware from "../middlewares/authMiddleware.mjs";
+import prisma from "../utils/db.mjs";
+import bcrypt from "bcrypt";
 
 const userRouter = Router();
 
-let users = [
-    {
-      id: 1,
-      username: "hakmi672",
-      email:"hakmi@gmail.com",
-      password: "654321",
-    },
-    {
-      id: 2,
-      username: "aitmouss672",
-      email:"aitmouss@gmail.com",
-      password: "123456",
-    },
-  ];
-
-userRouter.get("/api/users",checkAuthMiddleware(["admin"]),(req,res)=>{
-
+userRouter.get(
+  "/api/users",
+  checkAuthMiddleware(["admin"]),
+  async (req, res) => {
+    const users = await prisma.user.findMany({
+        select: { id: true, username: true, email: true },
+    });
     res.status(200).json(users);
-})
+  }
+);
 
-userRouter.get("/api/users/:id",checkAuthMiddleware(["admin","author"]),(req,res)=>{
+userRouter.get(
+  "/api/users/:id",
+  checkAuthMiddleware(["admin", "author"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const foundUser = await prisma.user.findUnique({
+        where: { id: +id },
+        select: { id: true, username: true, email: true },
+      });
 
-    const {id} =req.params;
-    const foundUser = users.find((u)=>u.id === +id);
-    if(foundUser){
-        res.json(foundUser);
+      if (foundUser) {
+        return res.json(foundUser);
+      }
+      return res.status(404).json({ message: "user not found!" });
+    } catch (e) {
+      return res.status(500).json({ error: e });
     }
-    res.status(404).json({ message: "user not found!" });
+  }
+);
 
-})
+userRouter.post("/api/users", async (req, res) => {
+  const { username, email, password } = req.body;
+  try {
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        email,
+        password: await bcrypt.hash(password, 10),
+      },
+    });
+    if (newUser)
+      return res.status(201).json({ message: "user created successfully!" });
+    throw new Error("Cloud not create new user.");
+  } catch (e) {
+    res.status(500).json({ error: e });
+  }
+});
 
-userRouter.post("/api/users",checkAuthMiddleware(["admin"]),(req,res)=>{
-    const {username,email,password}=req.body;
-    const newUser = {
-        id:users.length+1,username,email,password
-    }
-    users.push(newUser);
-    res.status(201).json({ message: "user created successfully!" });
-})
 
-userRouter.delete("/api/users/:id",checkAuthMiddleware(["admin", "author"]),(req,res)=>{
-    const {id} = req.params;
-    const deleteUser=users.filter(u=>u.id!==id);
-    if(deleteUser) res.status(404).json({message: "user not found"});
-})
+userRouter.delete(
+  "/api/users/:id",
+  checkAuthMiddleware(["admin", "author"]),
+  (req, res) => {
+    const { id } = req.params;
+    const deleteUser = users.filter((u) => u.id !== id);
+    if (deleteUser) res.status(404).json({ message: "user not found" });
+  }
+);
 
-userRouter.put("/api/users/:id",checkAuthMiddleware(["admin", "author"]),(req,res)=>{
-    const {id} = req.params;
-    const {username,email,password}=req.body;
-    const foundUser = users.find((u)=>u.id === +id);
+userRouter.put(
+  "/api/users/:id",
+  checkAuthMiddleware(["admin", "author"]),
+  (req, res) => {
+    const { id } = req.params;
+    const { username, email, password } = req.body;
+    const foundUser = users.find((u) => u.id === +id);
 
-    if(username) foundUser.username =username;
-    if(email) foundUser.email =email;
-    if(password) foundUser.password =password;
-    res.json({message: "user modified"});
-
-})
+    if (username) foundUser.username = username;
+    if (email) foundUser.email = email;
+    if (password) foundUser.password = password;
+    res.json({ message: "user modified" });
+  }
+);
 
 export default userRouter;
